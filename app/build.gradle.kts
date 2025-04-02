@@ -65,6 +65,9 @@ dependencies {
     // Optional: Hilt Navigation Compose integration
     // implementation(libs.androidx.hilt.navigation.compose)
 
+    // Coil Image Loading
+    implementation(libs.coil.compose)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

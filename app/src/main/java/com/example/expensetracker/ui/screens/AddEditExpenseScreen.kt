@@ -1,16 +1,29 @@
 package com.example.expensetracker.ui.screens
 
+import android.Manifest
+import android.content.Context
+import android.net.Uri
+import androidx.core.content.FileProvider
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import java.io.File
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,6 +47,67 @@ fun AddEditExpenseScreen(
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = uiState.date.time // Initialize with current state
     )
+    val context = LocalContext.current
+    var tempImageUri by remember { mutableStateOf<Uri?>(null) } // For camera result
+
+    // --- ActivityResultLaunchers ---
+
+    // Launcher for taking a picture
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                tempImageUri?.let { uri ->
+                    viewModel.updateReceiptImagePath(uri.toString())
+                }
+            }
+            // Reset temp URI regardless of success
+            tempImageUri = null
+        }
+    )
+
+    // Launcher for selecting image from gallery
+    val selectImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? ->
+            uri?.let {
+                // Persist permission if needed for long-term access (optional)
+                // val flag = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                // context.contentResolver.takePersistableUriPermission(uri, flag)
+                viewModel.updateReceiptImagePath(it.toString())
+            }
+        }
+    )
+
+    // Launcher for camera permission request
+    val requestCameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted: Boolean ->
+            if (isGranted) {
+                // Permission granted, create temp file URI and launch camera
+                try {
+                    val photoFile = createImageFile(context)
+                    val photoURI: Uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.provider", // Authority must match AndroidManifest
+                        photoFile
+                    )
+                    tempImageUri = photoURI // Store the URI to use in the callback
+                    takePictureLauncher.launch(photoURI)
+                } catch (ex: Exception) {
+                    // Error occurred while creating the File
+                    println("ERROR: Could not create image file: ${ex.message}")
+                    // Optionally show an error message to the user
+                }
+            } else {
+                // Permission denied
+                println("WARN: Camera permission denied.")
+                // Optionally show a Snackbar or message explaining why the permission is needed
+            }
+        }
+    )
+
+
     Scaffold(
         topBar = {
             TopAppBar(title = { Text(if (uiState.isEditMode) "Edit Expense" else "Add Expense") })
@@ -44,7 +118,8 @@ fun AddEditExpenseScreen(
                 modifier = Modifier
                     .padding(paddingValues)
                     .padding(16.dp)
-                    .fillMaxSize(),
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()), // Make column scrollable
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Amount Field
@@ -88,9 +163,58 @@ fun AddEditExpenseScreen(
                     modifier = Modifier.fillMaxWidth().height(100.dp) // Allow multiple lines
                 )
 
-                // TODO: Add Image Picker/Capture Button
+                // --- Receipt Image Section ---
+                Text("Receipt Image (Optional)", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
 
-                Spacer(modifier = Modifier.weight(1f)) // Push button to bottom
+                // Image Preview
+                if (uiState.receiptImagePath != null) {
+                    AsyncImage(
+                        model = uiState.receiptImagePath,
+                        contentDescription = "Selected Receipt",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .align(Alignment.CenterHorizontally)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { viewModel.updateReceiptImagePath(null) }) {
+                        Text("Remove Image")
+                    }
+
+                }
+
+                // Buttons for Image Source
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            // Check permission and launch camera
+                            requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text("Take Photo")
+                    }
+                    Button(
+                        onClick = {
+                            // Launch gallery selector
+                            selectImageLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                         Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                         Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                         Text("From Gallery")
+                    }
+                }
+                // --- End Receipt Image Section ---
+
+                Spacer(modifier = Modifier.height(16.dp)) // Add space before error/save
 
                 // Error Message Display
                 if (uiState.errorMessage != null) {
@@ -150,6 +274,22 @@ fun AddEditExpenseScreen(
             DatePicker(state = datePickerState)
         }
     }
+}
+
+/**
+ * Creates a temporary image file in the app's cache directory.
+ */
+private fun createImageFile(context: Context): File {
+    // Create an image file name using timestamp
+    val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val imageFileName = "JPEG_${timeStamp}_"
+    // Get the directory for storing cache files (defined in file_paths.xml)
+    val storageDir: File? = File(context.cacheDir, "images").apply { mkdirs() } // Ensure directory exists
+    return File.createTempFile(
+        imageFileName, /* prefix */
+        ".jpg", /* suffix */
+        storageDir /* directory */
+    )
 }
 
 // Basic Dropdown for Categories - Needs improvement for better UX

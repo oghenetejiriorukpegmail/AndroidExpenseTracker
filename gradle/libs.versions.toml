@@ -16,6 +16,8 @@ hilt = "2.51.1"
 ksp = "2.0.21-1.0.24" # Match Kotlin version
 # Navigation Compose (Already used, adding version explicitly)
 navigationCompose = "2.7.7"
+# Coil
+coil = "2.6.0"
 
 
 [libraries]
@@ -46,6 +48,9 @@ hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
 # Optional: Hilt Navigation Compose
 # androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.2.0" } # Example version
+
+# Coil
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 
 
 [plugins]
