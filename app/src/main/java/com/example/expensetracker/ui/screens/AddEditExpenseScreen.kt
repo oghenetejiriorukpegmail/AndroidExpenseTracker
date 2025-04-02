@@ -1,7 +1,11 @@
 package com.example.expensetracker.ui.screens
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,7 +17,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.expensetracker.data.database.entity.Category
 import com.example.expensetracker.ui.viewmodel.AddEditExpenseViewModel
 import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,7 +30,10 @@ fun AddEditExpenseScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val dateFormatter = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
-
+    var showDatePickerDialog by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = uiState.date.time // Initialize with current state
+    )
     Scaffold(
         topBar = {
             TopAppBar(title = { Text(if (uiState.isEditMode) "Edit Expense" else "Add Expense") })
@@ -55,15 +65,20 @@ fun AddEditExpenseScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Date Field (Display only for now - needs DatePickerDialog)
-                OutlinedTextField(
-                    value = dateFormatter.format(uiState.date),
-                    onValueChange = { /* Read-only for now */ },
-                    label = { Text("Date") },
-                    readOnly = true,
-                    modifier = Modifier.fillMaxWidth()
-                    // Add interaction to open DatePickerDialog later
-                )
+                // Date Field - Clickable
+                Box(modifier = Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null // No ripple effect
+                ) { showDatePickerDialog = true }) {
+                    OutlinedTextField(
+                        value = dateFormatter.format(uiState.date),
+                        onValueChange = { /* Read-only */ },
+                        label = { Text("Date") },
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = { Icon(Icons.Default.DateRange, contentDescription = "Select Date") }
+                    )
+                }
 
                 // Notes Field
                 OutlinedTextField(
@@ -101,6 +116,40 @@ fun AddEditExpenseScreen(
             }
         }
     )
+
+    // Date Picker Dialog
+    if (showDatePickerDialog) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePickerDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDatePickerDialog = false
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            // Convert UTC millis to local Date
+                            val selectedUtcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                                timeInMillis = millis
+                            }
+                            val localCalendar = Calendar.getInstance().apply {
+                                clear() // Clear current time parts
+                                set(
+                                    selectedUtcCalendar.get(Calendar.YEAR),
+                                    selectedUtcCalendar.get(Calendar.MONTH),
+                                    selectedUtcCalendar.get(Calendar.DAY_OF_MONTH)
+                                )
+                            }
+                            viewModel.updateDate(localCalendar.time)
+                        }
+                    }
+                ) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePickerDialog = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 }
 
 // Basic Dropdown for Categories - Needs improvement for better UX
