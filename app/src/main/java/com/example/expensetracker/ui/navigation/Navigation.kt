@@ -34,6 +34,9 @@ sealed class Screen(val route: String, val label: String) {
         fun createRoute(expenseId: Long) = "add_edit_expense?expenseId=$expenseId"
         const val expenseIdArg = "expenseId" // Argument name
     }
+
+    // Category Management Screen
+    object CategoryManagement : Screen("category_management", "Manage Categories")
 }
 
 // List of screens to appear in the bottom navigation bar

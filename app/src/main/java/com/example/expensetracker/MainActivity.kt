@@ -29,8 +29,9 @@ import androidx.navigation.navArgument
 import com.example.expensetracker.ui.navigation.Screen
 import com.example.expensetracker.ui.navigation.ScreenWithIcon // Import the correct type for bottomNavItems
 import com.example.expensetracker.ui.navigation.bottomNavItems
-import com.example.expensetracker.ui.screens.AddEditExpenseScreen // Import the new screen
+import com.example.expensetracker.ui.screens.AddEditExpenseScreen
 import com.example.expensetracker.ui.screens.BudgetsScreen
+import com.example.expensetracker.ui.screens.CategoryManagementScreen // Import Category screen
 import com.example.expensetracker.ui.screens.HistoryScreen
 import com.example.expensetracker.ui.screens.OverviewScreen
 import com.example.expensetracker.ui.screens.SettingsScreen
@@ -104,7 +105,7 @@ fun ExpenseTrackerApp(modifier: Modifier = Modifier) {
             composable(Screen.Overview.route) { OverviewScreen() }
             composable(Screen.History.route) { HistoryScreen() }
             composable(Screen.Budgets.route) { BudgetsScreen() }
-            composable(Screen.Settings.route) { SettingsScreen(/* Pass navController if needed later */) }
+            composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
 
             // Add/Edit Expense Screen Route
             composable(
@@ -120,6 +121,13 @@ fun ExpenseTrackerApp(modifier: Modifier = Modifier) {
                 // Pass expenseId to ViewModel later if needed for editing
                 AddEditExpenseScreen(
                     // navController = navController // Pass navController for navigating back
+                )
+            }
+
+            // Category Management Screen Route
+            composable(Screen.CategoryManagement.route) {
+                CategoryManagementScreen(
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
         }
