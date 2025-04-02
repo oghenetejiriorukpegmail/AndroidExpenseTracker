@@ -67,7 +67,11 @@ dependencies {
 
     // Coil Image Loading
     implementation(libs.coil.compose)
+// Vico Charting Library
+implementation(libs.vico.core)
+implementation(libs.vico.compose.m3)
 
+testImplementation(libs.junit)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
